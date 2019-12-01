@@ -29,11 +29,9 @@ import datetime as dt
 import pandas as pd  		   	  			  	 		  		  		    	 		 		   		 		  
 import util as ut
 import numpy as np
-import random
 import RTLearner as rt
 import BagLearner as bl
-from indicators import get_indicators, normalize
-from marketsimcode import compute_portvals
+
 
 def author():
     return 'gpark83'
@@ -88,7 +86,6 @@ class StrategyLearner(object):
         else:
             return 0
 
-
     # this method should create a QLearner, and train it for trading
     def addEvidence(self, symbol = "IBM", \
         sd=dt.datetime(2008,1,1), \
@@ -103,6 +100,7 @@ class StrategyLearner(object):
         prices_SPY = prices_all['SPY']  # only SPY, for comparison later
         if self.verbose: print(prices)
 
+        # Get Indicators
         normalized_prices = prices / prices.loc[prices.first_valid_index()]
         daily_ret = normalized_prices.copy()
         daily_ret[:-self.lookback] = (daily_ret[self.lookback:].values / daily_ret[: -self.lookback].values) - 1
