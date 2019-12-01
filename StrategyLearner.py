@@ -40,6 +40,7 @@ class StrategyLearner(object):
     def __init__(self, verbose = False, impact=0.0):  		   	  			  	 		  		  		    	 		 		   		 		  
         self.verbose = verbose  		   	  			  	 		  		  		    	 		 		   		 		  
         self.impact = impact
+        self.lookback = 21
 
     def get_order(self, positions, symbol):
         holding_orders = pd.DataFrame(columns=['Date', symbol])
@@ -76,40 +77,66 @@ class StrategyLearner(object):
     def addEvidence(self, symbol = "IBM", \
         sd=dt.datetime(2008,1,1), \
         ed=dt.datetime(2009,1,1), \
-        sv = 10000):  		   	  			  	 		  		  		    	 		 		   		 		  
+        sv = 10000):
 
-        # example usage of the old backward compatible util function
-        syms=[symbol]  		   	  			  	 		  		  		    	 		 		   		 		  
-        dates = pd.date_range(sd, ed)  		   	  			  	 		  		  		    	 		 		   		 		  
-        prices_all = ut.get_data(syms, dates)  # automatically adds SPY  		   	  			  	 		  		  		    	 		 		   		 		  
-        prices = prices_all[syms]  # only portfolio symbols  		   	  			  	 		  		  		    	 		 		   		 		  
-        prices_SPY = prices_all['SPY']  # only SPY, for comparison later  		   	  			  	 		  		  		    	 		 		   		 		  
+        syms = [symbol]
+        dates = pd.date_range(sd, ed)
+        prices_all = ut.get_data(syms, dates)  # automatically adds SPY
+        prices = prices_all[syms]  # only portfolio symbols
+        prices_SPY = prices_all['SPY']  # only SPY, for comparison later
         if self.verbose: print(prices)
 
+        normalized_prices = prices / prices.loc[prices.first_valid_index()]
+        daily_ret = normalized_prices.copy()
+        daily_ret[:-self.lookback] = (daily_ret[self.lookback:].values / daily_ret[: -self.lookback].values) - 1
+        daily_ret.iloc[-self.lookback:] = 0
+        daily_ret = daily_ret[symbol]
+
+        rolling_mean = normalized_prices.rolling(window=self.lookback, min_periods=self.lookback).mean()
+        price_sma = normalized_prices / rolling_mean
+
+        rolling_std = normalized_prices.rolling(window=self.lookback, min_periods=self.lookback).std()
+        top_band = rolling_mean + (2 * rolling_std)
+        bottom_band = rolling_mean - (2 * rolling_std)
+        bbp = (normalized_prices - bottom_band) / (top_band - bottom_band)
+
+        high = normalized_prices.loc[sd:ed]
+        low = normalized_prices.loc[sd:ed]
+        close = normalized_prices.loc[sd:ed]
+
+        so = high.copy()
+
+        for day in range(high.shape[0]):
+            so.iloc[day, :] = 0
+
+        so['16 Day Low'] = low[symbol].rolling(window=16).min()
+        so['16 Day High'] = high[symbol].rolling(window=16).max()
+        so['%K'] = ((close[symbol] - so['16 Day Low']) / (so['16 Day High'] - so['16 Day Low'])) * 100
+        so['%D'] = so['%K'].rolling(window=3).mean()
+
+        so_d = so['%D']
+
         # add your code to do learning here
-        window = 20
-        sma, bbp, so, price, normalized_price = get_indicators(symbol, sd, ed, window)
-        so = so['%D']
-        indicators = pd.concat([sma, bbp, so], axis=1)
+        indicators = pd.concat([price_sma, bbp, so_d], axis=1)
         indicators.columns = ['SMA', 'BBP', 'SO']
 
         # Discretize
         num_steps = 10
 
-        sma_copy = sma[symbol].to_numpy()
+        sma_copy = price_sma[symbol].to_numpy()
         sma_out, sma_bins = pd.qcut(sma_copy, num_steps, retbins=True, labels=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9], duplicates='drop')
 
         bbp_copy = bbp[symbol].to_numpy()
         bbp_out, bbp_bins = pd.qcut(bbp_copy, num_steps, retbins=True, labels=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
                                     duplicates='drop')
 
-        so_copy = so.values
-        so_out, so_bins = pd.qcut(so_copy, num_steps, retbins=True, labels=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+        so_d_copy = so_d.values
+        so_d_out, so_d_bins = pd.qcut(so_d_copy, num_steps, retbins=True, labels=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
                                     duplicates='drop')
 
         sma_state = pd.cut(indicators['SMA'], bins=sma_bins, labels=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
         bbp_state = pd.cut(indicators['BBP'], bins=bbp_bins, labels=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
-        so_state = pd.cut(indicators['SO'], bins=so_bins, labels=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+        so_state = pd.cut(indicators['SO'], bins=so_d_bins, labels=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
         indicators_states = pd.DataFrame(np.zeros(len(sma_state)))
 
         for i in range(len(sma_state)):
@@ -136,16 +163,16 @@ class StrategyLearner(object):
             for day in range(1, indicators_states.shape[0]):
                 holding = action
                 date = sma_state.index[day]
-                price_index = price.index.get_loc(date)
+                price_index = normalized_prices.index.get_loc(date)
 
-                daily_return = (price.iloc[price_index] / price.iloc[price_index-1]) - 1
+                daily_return = daily_ret.index.get_loc(date)
 
                 reward = holding * daily_return * (1 - self.impact)
 
                 action = self.qlearner.query(int(float(indicators_states.iloc[day])), reward)
                 positions = positions.append({'Date': date, 'Position': action}, ignore_index=True)
             holding_orders = self.get_order(positions, symbol)
-            strategy_learner = compute_portvals(holding_orders, price, sd, ed, sv, 9.95, 0.005)
+            strategy_learner = compute_portvals(holding_orders, normalized_prices, sd, ed, sv, 9.95, 0.005)
             prev_holding_orders = holding_orders.copy()
 
     # this method should use the existing policy and test it against new data
