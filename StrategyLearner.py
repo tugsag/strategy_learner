@@ -106,30 +106,15 @@ class StrategyLearner(object):
         so_d = so['%D']
 
         YBUY = 0.01
-        YSELL = 0
+        YSELL = -0.02
 
-        # price_sma, bbp, so, price, norm_price = get_indicators(syms, sd, ed, self.lookback)
         concat_frames = [price_sma, bbp, so_d]
         indicators = pd.concat(concat_frames, axis=1)
         indicators.columns = ['Price/SMA', 'BBP', 'SO']
-
+        indicators = indicators.fillna(value=0).copy()
         trainingX = indicators.values
-        # daily_ret = self.get_daily_ret(normalized_prices, self.lookback, syms)
 
         trainingY = []
-        # df = normalized_prices.copy()
-        # df['Price/SMA'] = normalized_prices / rolling_mean
-        # df['BBP'] = (normalized_prices - bottom_band) / (top_band - bottom_band)
-        # df['SO'] = so_d
-        # df['action'] = 0
-        # df.loc[daily_ret > (YBUY + self.impact), 'action'] = 1
-        # df.loc[daily_ret < (YSELL + self.impact), 'action'] = -1
-        # df = df.fillna(value=0).copy()
-        # data = df.values
-        # X = data[:, :-1]
-        # Y = data[:, -1].astype(dtype=int)
-        # print(X)
-        # print(Y)
 
         for index, row in normalized_prices.iterrows():
             if daily_ret.loc[index] > (YBUY + self.impact):
@@ -138,8 +123,6 @@ class StrategyLearner(object):
                 trainingY.append(-1)
             else:
                 trainingY.append(0)
-
-        print(trainingY)
 
         trainingY = np.array(trainingY)
 
@@ -192,27 +175,13 @@ class StrategyLearner(object):
         YBUY = 0.01
         YSELL = 0
 
-        # price_sma, bbp, so, price, norm_price = get_indicators(syms, sd, ed, self.lookback)
         concat_frames = [price_sma, bbp, so_d]
         indicators = pd.concat(concat_frames, axis=1)
         indicators.columns = ['Price/SMA', 'BBP', 'SO']
-
+        indicators = indicators.fillna(value=0).copy()
         testingX = indicators.values
 
         testingY = []
-        # df = normalized_prices.copy()
-        # df['Price/SMA'] = normalized_prices / rolling_mean
-        # df['BBP'] = (normalized_prices - bottom_band) / (top_band - bottom_band)
-        # df['SO'] = so_d
-        # df['action'] = 0
-        # df.loc[daily_ret > (YBUY + self.impact), 'action'] = 1
-        # df.loc[daily_ret < (YSELL + self.impact), 'action'] = -1
-        # df = df.fillna(value=0).copy()
-        # data = df.values
-        # X = data[:, :-1]
-        # Y = data[:, -1].astype(dtype=int)
-        # print(X)
-        # print(Y)
 
         for index, row in normalized_prices.iterrows():
             if daily_ret.loc[index] > (YBUY + self.impact):
@@ -222,19 +191,16 @@ class StrategyLearner(object):
             else:
                 testingY.append(0)
 
-        answer = self.learner.query(testingX)
-        dates = pd.date_range(sd, ed)
-        prices_all = ut.get_data([symbol], dates)  # automatically adds SPY
-        trades = prices_all[[symbol, ]]  # only portfolio symbols
+        predY = self.learner.query(testingX)
+        prices_all = ut.get_data([symbol], pd.date_range(sd, ed))
+        trades = prices_all[[symbol, ]]
 
-        # print(testingY)
-        YBUY = 0.01
-        YSELL = 0
+        YBUY = 0.02
+        YSELL = -0.02
 
-        trades.values[:, :] = 0  # set them all to nothing
-
-        trades.values[answer > (YBUY + 2 * self.impact)] = 1000
-        trades.values[answer < (YSELL - 2 * self.impact)] = -1000
+        trades.values[:, :] = 0
+        trades.values[predY > (YBUY + 2 * self.impact)] = 1000
+        trades.values[predY < (YSELL - 2 * self.impact)] = -1000
 
         orders = trades.copy()
         orders = orders.diff()
@@ -249,51 +215,7 @@ class StrategyLearner(object):
         prices_all
 
         return orders
-        # prev = 0
-        # for day in range(lookback+1, price.shape[0]):
-        #     date = price.iloc[day].name
-        #     if prev == 0:
-        #         positions = positions.append({'Date': date, 'Position': 0}, ignore_index=True)
-        #         prev = date
-        #
-        #     positions = positions.append({'Date': prev, 'Position': self.check_value(testingY[day])}, ignore_index=True)
-        #     prev = date
-        #     if date == ed:
-        #         positions = positions.append({'Date': date, 'Position': self.check_value(testingY[day])}, ignore_index=True)
-        #
-        # holding_orders = pd.DataFrame(columns=['Date', symbol])
-        # current_holdings = 0
-        #
-        # for holding in positions.iterrows():
-        #     date = holding[1]['Date']
-        #     position = holding[1]['Position']
-        #
-        #     if current_holdings == 0:
-        #         if position == -1:
-        #             holding_orders = holding_orders.append({'Date': date, symbol: -1000}, ignore_index=True)
-        #             current_holdings -= 1000
-        #         elif position == 1:
-        #             holding_orders = holding_orders.append({'Date': date, symbol: 1000}, ignore_index=True)
-        #             current_holdings += 1000
-        #         else:
-        #             holding_orders = holding_orders.append({'Date': date, symbol: 0}, ignore_index=True)
-        #     elif current_holdings == 1000:
-        #         if position == -1:
-        #             holding_orders = holding_orders.append({'Date': date, symbol: -2000}, ignore_index=True)
-        #             current_holdings -= 2000
-        #         else:
-        #             holding_orders = holding_orders.append({'Date': date, symbol: 0}, ignore_index=True)
-        #     elif current_holdings == -1000:
-        #         if position == 1:
-        #             holding_orders = holding_orders.append({'Date': date, symbol: 2000}, ignore_index=True)
-        #             current_holdings += 2000
-        #         else:
-        #             holding_orders = holding_orders.append({'Date': date, symbol: 0}, ignore_index=True)
-        #
-        # strategy_learner = compute_portvals(holding_orders, price, sd, ed, sv, 9.95, 0.005)
-        # holding_orders = holding_orders.set_index('Date')
-        # holding_orders = holding_orders[1:]
-        # return holding_orders
+
 
 if __name__=="__main__":
     learner = StrategyLearner()
