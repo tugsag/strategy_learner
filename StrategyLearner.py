@@ -31,6 +31,7 @@ import util as ut
 import numpy as np
 import RTLearner as rt
 import BagLearner as bl
+from indicators import get_indicators
 
 
 def author():
@@ -102,37 +103,17 @@ class StrategyLearner(object):
 
         # Get Indicators
         normalized_prices = prices / prices.loc[prices.first_valid_index()]
+
+        YBUY = 0.01
+        YSELL = -0.02
+
+        price_sma, bbp, so = get_indicators(syms, sd, ed, self.lookback)
+        so_d = so['%D']
+
         daily_ret = normalized_prices.copy()
         daily_ret[:-self.lookback] = (daily_ret[self.lookback:].values / daily_ret[: -self.lookback].values) - 1
         daily_ret.iloc[-self.lookback:] = 0
         daily_ret = daily_ret[symbol]
-
-        rolling_mean = normalized_prices.rolling(window=self.lookback, min_periods=self.lookback).mean()
-        price_sma = normalized_prices / rolling_mean
-
-        rolling_std = normalized_prices.rolling(window=self.lookback, min_periods=self.lookback).std()
-        top_band = rolling_mean + (2 * rolling_std)
-        bottom_band = rolling_mean - (2 * rolling_std)
-        bbp = (normalized_prices - bottom_band) / (top_band - bottom_band)
-
-        high = normalized_prices.loc[sd:ed]
-        low = normalized_prices.loc[sd:ed]
-        close = normalized_prices.loc[sd:ed]
-
-        so = high.copy()
-
-        for day in range(high.shape[0]):
-            so.iloc[day, :] = 0
-
-        so['16 Day Low'] = low[symbol].rolling(window=16).min()
-        so['16 Day High'] = high[symbol].rolling(window=16).max()
-        so['%K'] = ((close[symbol] - so['16 Day Low']) / (so['16 Day High'] - so['16 Day Low'])) * 100
-        so['%D'] = so['%K'].rolling(window=3).mean()
-
-        so_d = so['%D']
-
-        YBUY = 0.01
-        YSELL = -0.02
 
         concat_frames = [price_sma, bbp, so_d]
         indicators = pd.concat(concat_frames, axis=1)
@@ -169,37 +150,17 @@ class StrategyLearner(object):
         if self.verbose: print(prices)
 
         normalized_prices = prices / prices.loc[prices.first_valid_index()]
+
+        YBUY = 0.01
+        YSELL = -0.02
+
+        price_sma, bbp, so = get_indicators(syms, sd, ed, self.lookback)
+        so_d = so['%D']
+
         daily_ret = normalized_prices.copy()
         daily_ret[:-self.lookback] = (daily_ret[self.lookback:].values / daily_ret[: -self.lookback].values) - 1
         daily_ret.iloc[-self.lookback:] = 0
         daily_ret = daily_ret[symbol]
-
-        rolling_mean = normalized_prices.rolling(window=self.lookback, min_periods=self.lookback).mean()
-        price_sma = normalized_prices / rolling_mean
-
-        rolling_std = normalized_prices.rolling(window=self.lookback, min_periods=self.lookback).std()
-        top_band = rolling_mean + (2 * rolling_std)
-        bottom_band = rolling_mean - (2 * rolling_std)
-        bbp = (normalized_prices - bottom_band) / (top_band - bottom_band)
-
-        high = normalized_prices.loc[sd:ed]
-        low = normalized_prices.loc[sd:ed]
-        close = normalized_prices.loc[sd:ed]
-
-        so = high.copy()
-
-        for day in range(high.shape[0]):
-            so.iloc[day, :] = 0
-
-        so['16 Day Low'] = low[symbol].rolling(window=16).min()
-        so['16 Day High'] = high[symbol].rolling(window=16).max()
-        so['%K'] = ((close[symbol] - so['16 Day Low']) / (so['16 Day High'] - so['16 Day Low'])) * 100
-        so['%D'] = so['%K'].rolling(window=3).mean()
-
-        so_d = so['%D']
-
-        YBUY = 0.01
-        YSELL = -0.02
 
         concat_frames = [price_sma, bbp, so_d]
         indicators = pd.concat(concat_frames, axis=1)

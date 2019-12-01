@@ -128,4 +128,4 @@ def get_indicators(symbols, sd, ed, lookback):
     # plt.legend()
     # fig3.savefig('SO.png')
 
-    return price/sma, bbp, so, price, normalized_price
+    return price/sma, bbp, so
