@@ -22,7 +22,6 @@ def normalize(df):
 
 
 def get_indicators(symbols, sd, ed, lookback):
-    symbols = [symbols]
 
     price = get_data(symbols, pd.date_range(sd, ed), False)
 

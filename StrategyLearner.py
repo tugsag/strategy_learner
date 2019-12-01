@@ -25,23 +25,157 @@ Student Name: Grace Park
 GT User ID: gpark83
 GT ID: 903474899
 """  		   	  			  	 		  		  		    	 		 		   		 		  
-from indicators import get_indicators
-from marketsimcode import compute_portvals, get_daily_ret
 import datetime as dt
 import pandas as pd  		   	  			  	 		  		  		    	 		 		   		 		  
 import util as ut
 import numpy as np
-import QLearner as ql
 import random
+import RTLearner as rt
+import BagLearner as bl
+from indicators import get_indicators
+from marketsimcode import compute_portvals
+
+def author():
+    return 'gpark83'
 
 class StrategyLearner(object):
 
     # constructor  		   	  			  	 		  		  		    	 		 		   		 		  
-    def __init__(self, verbose = False, impact=0.0):  		   	  			  	 		  		  		    	 		 		   		 		  
-        self.verbose = verbose  		   	  			  	 		  		  		    	 		 		   		 		  
+    def __init__(self, verbose = False, impact=0.0):
+        self.verbose = verbose
         self.impact = impact
+        self.learner = bl.BagLearner(learner=rt.RTLearner, kwargs={"leaf_size": 5}, bags=20, boost=False, verbose=False)
 
-    def get_order(self, positions, symbol):
+    def get_daily_ret(self, df, day, symbol):
+        daily_ret = df.copy()
+        daily_ret[:-day] = (daily_ret[day:].values / daily_ret[: -day].values) - 1
+        daily_ret.ix[-day:] = 0
+        return daily_ret[symbol]
+
+    def check_value(self, testingY):
+        if testingY > 0:
+            return 1
+        elif testingY < 0:
+            return -1
+        else:
+            return 0
+
+    # this method should create a QLearner, and train it for trading
+    def addEvidence(self, symbol = "IBM", \
+        sd=dt.datetime(2008,1,1), \
+        ed=dt.datetime(2009,1,1), \
+        sv = 10000):
+
+        # example usage of the old backward compatible util function
+        syms=[symbol]
+        dates = pd.date_range(sd, ed)
+        prices_all = ut.get_data(syms, dates)  # automatically adds SPY
+        prices = prices_all[syms]  # only portfolio symbols
+        prices_SPY = prices_all['SPY']  # only SPY, for comparison later
+        if self.verbose: print(prices)
+
+        lookback = 14
+
+        # norm_prices = prices.divide(prices.ix[0])
+        # daily_rets = self.compute_daily_returns(norm_prices, lookback, symbol)
+
+        # Get indicators
+        # rolling_mean = norm_prices.rolling(window=lookback).mean()
+        # rolling_std = norm_prices.rolling(window=lookback).std()
+        # up = (rolling_std * 2) + rolling_mean
+        # down = (rolling_std * -2) + rolling_mean
+
+        # df = norm_prices.copy()
+        # df['bbp'] = (norm_prices - down) / (up - down)
+        # df['Price/SMA'] = norm_prices / rolling_mean
+        # df['bollinger_up'] = (rolling_std * 2) + rolling_mean
+        # df['bollinger_down'] = (rolling_std * -2) + rolling_mean
+        # df['Price/EMA'] = norm_prices / norm_prices.ewm(span=lookback).mean()
+        # df = df.drop(symbol, 1)
+        YBUY = 0.02
+        YSELL = -0.02
+
+        price_sma, bbp, so, price, norm_price = get_indicators(syms, sd, ed, lookback)
+        concat_frames = [price_sma, bbp, so['%D']]
+        indicators = pd.concat(concat_frames, axis=1)
+        indicators.columns = ['Price/SMA', 'BBP', 'SO']
+        indicators.fillna(0, inplace=True)
+        trainingX = indicators.values
+
+        daily_rets = self.get_daily_ret(price, lookback, syms)
+
+        trainingY = []
+        # indicators.loc[daily_rets > (YBUY + self.impact), Y] = 1
+        # indicators.loc[daily_rets < (YSELL + self.impact), Y] = -1
+
+        for index, row in price.iterrows():
+            if daily_rets.loc[index, symbol] > (YBUY + self.impact):
+                trainingY.append(1)
+            elif daily_rets.loc[index, symbol] < (YSELL + self.impact):
+                trainingY.append(-1)
+            else:
+                trainingY.append(0)
+
+        trainingY = np.array(trainingY)
+
+        self.learner.addEvidence(trainingX, trainingY)
+
+    # this method should use the existing policy and test it against new data
+    def testPolicy(self, symbol = "IBM", \
+        sd=dt.datetime(2009,1,1), \
+        ed=dt.datetime(2010,1,1), \
+        sv = 10000):
+
+        syms = [symbol]
+        dates = pd.date_range(sd, ed)
+        prices_all = ut.get_data(syms, dates)  # automatically adds SPY
+        prices = prices_all[syms]  # only portfolio symbols
+        prices_SPY = prices_all['SPY']  # only SPY, for comparison later
+        if self.verbose: print(prices)
+
+        lookback = 14
+
+        # norm_prices = prices.divide(prices.ix[0])
+        # daily_rets = self.compute_daily_returns(norm_prices, lookback, symbol)
+
+        # Get indicators
+        # rolling_mean = norm_prices.rolling(window=lookback).mean()
+        # rolling_std = norm_prices.rolling(window=lookback).std()
+        # up = (rolling_std * 2) + rolling_mean
+        # down = (rolling_std * -2) + rolling_mean
+
+        # df = norm_prices.copy()
+        # df['bbp'] = (norm_prices - down) / (up - down)
+        # df['Price/SMA'] = norm_prices / rolling_mean
+        # df['bollinger_up'] = (rolling_std * 2) + rolling_mean
+        # df['bollinger_down'] = (rolling_std * -2) + rolling_mean
+        # df['Price/EMA'] = norm_prices / norm_prices.ewm(span=lookback).mean()
+        # df = df.drop(symbol, 1)
+        YBUY = 0.02
+        YSELL = -0.02
+
+        price_sma, bbp, so, price, norm_price = get_indicators(syms, sd, ed, lookback)
+        concat_frames = [price_sma, bbp, so['%D']]
+        indicators = pd.concat(concat_frames, axis=1)
+        indicators.columns = ['Price/SMA', 'BBP', 'SO']
+        indicators.fillna(0, inplace=True)
+        testingX = indicators.values
+        testingY = self.learner.query(testingX)
+
+        # print(testingY)
+        positions = pd.DataFrame(columns=['Date', 'Position'])
+        prev = 0
+        for day in range(lookback+1, price.shape[0]):
+            date = price.iloc[day].name
+            if prev == 0:
+                positions = positions.append({'Date': date, 'Position': 0}, ignore_index=True)
+                prev = date
+
+            positions = positions.append({'Date': prev, 'Position': self.check_value(testingY[day])}, ignore_index=True)
+            prev = date
+            if date == ed:
+                positions = positions.append({'Date': date, 'Position': self.check_value(testingY[day])}, ignore_index=True)
+
         holding_orders = pd.DataFrame(columns=['Date', symbol])
         current_holdings = 0
 
@@ -50,7 +184,7 @@ class StrategyLearner(object):
             position = holding[1]['Position']
 
             if current_holdings == 0:
-                if position == 2:
+                if position == -1:
                     holding_orders = holding_orders.append({'Date': date, symbol: -1000}, ignore_index=True)
                     current_holdings -= 1000
                 elif position == 1:
@@ -59,7 +193,7 @@ class StrategyLearner(object):
                 else:
                     holding_orders = holding_orders.append({'Date': date, symbol: 0}, ignore_index=True)
             elif current_holdings == 1000:
-                if position == 2:
+                if position == -1:
                     holding_orders = holding_orders.append({'Date': date, symbol: -2000}, ignore_index=True)
                     current_holdings -= 2000
                 else:
@@ -70,170 +204,14 @@ class StrategyLearner(object):
                     current_holdings += 2000
                 else:
                     holding_orders = holding_orders.append({'Date': date, symbol: 0}, ignore_index=True)
+
+        strategy_learner = compute_portvals(holding_orders, price, sd, ed, sv, 9.95, 0.005)
+        holding_orders = holding_orders.set_index('Date')
+        holding_orders = holding_orders[1:]
         return holding_orders
-
-    # this method should create a QLearner, and train it for trading
-    def addEvidence(self, symbol = "IBM", \
-        sd=dt.datetime(2008,1,1), \
-        ed=dt.datetime(2009,1,1), \
-        sv = 10000):  		   	  			  	 		  		  		    	 		 		   		 		  
-
-        # example usage of the old backward compatible util function
-        syms=[symbol]  		   	  			  	 		  		  		    	 		 		   		 		  
-        dates = pd.date_range(sd, ed)  		   	  			  	 		  		  		    	 		 		   		 		  
-        prices_all = ut.get_data(syms, dates)  # automatically adds SPY  		   	  			  	 		  		  		    	 		 		   		 		  
-        prices = prices_all[syms]  # only portfolio symbols  		   	  			  	 		  		  		    	 		 		   		 		  
-        prices_SPY = prices_all['SPY']  # only SPY, for comparison later  		   	  			  	 		  		  		    	 		 		   		 		  
-        if self.verbose: print(prices)
-
-        # add your code to do learning here
-        window = 20
-        sma, bbp, so, price, normalized_price = get_indicators(symbol, sd, ed, window)
-        so = so['%D']
-        indicators = pd.concat([sma, bbp, so], axis=1)
-        indicators.columns = ['SMA', 'BBP', 'SO']
-
-        # Discretize
-        num_steps = 10
-
-        sma_copy = sma[symbol].to_numpy()
-        sma_out, sma_bins = pd.qcut(sma_copy, num_steps, retbins=True, labels=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9], duplicates='drop')
-
-        bbp_copy = bbp[symbol].to_numpy()
-        bbp_out, bbp_bins = pd.qcut(bbp_copy, num_steps, retbins=True, labels=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
-                                    duplicates='drop')
-
-        so_copy = so.values
-        so_out, so_bins = pd.qcut(so_copy, num_steps, retbins=True, labels=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
-                                    duplicates='drop')
-
-        sma_state = pd.cut(indicators['SMA'], bins=sma_bins, labels=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
-        bbp_state = pd.cut(indicators['BBP'], bins=bbp_bins, labels=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
-        so_state = pd.cut(indicators['SO'], bins=so_bins, labels=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
-        indicators_states = pd.DataFrame(np.zeros(len(sma_state)))
-
-        for i in range(len(sma_state)):
-            indicators_states.iloc[i] = (so_state.iloc[i] * 100) + (sma_state.iloc[i] * 10) + (bbp_state.iloc[i])
-
-        indicators_states.dropna(inplace=True)
-        # Initialize QLearner
-        self.qlearner = ql.QLearner(num_states=1000, num_actions=3, alpha=0.2, gamma=0.9, rar=0.9, radr=0.99, dyna=0,
-                            verbose=False)
-
-        converged = False
-        epoch_counter = 0
-
-        while not converged:
-            epoch_counter += 1
-
-            if epoch_counter > 19 and prev_holding_orders.equals(holding_orders):
-                converged = True
-
-            action = self.qlearner.querysetstate(int(indicators_states.iloc[0]))
-            positions = pd.DataFrame(columns=['Date', 'Position'])
-            positions = positions.append({'Date': sma_state.index[0], 'Position': 0}, ignore_index=True)
-
-            for day in range(1, indicators_states.shape[0]):
-                holding = action
-                date = sma_state.index[day]
-                price_index = price.index.get_loc(date)
-
-                daily_return = (price.iloc[price_index] / price.iloc[price_index-1]) - 1
-
-                reward = holding * daily_return * (1 - self.impact)
-
-                action = self.qlearner.query(int(float(indicators_states.iloc[day])), reward)
-                positions = positions.append({'Date': date, 'Position': action}, ignore_index=True)
-            holding_orders = self.get_order(positions, symbol)
-            strategy_learner = compute_portvals(holding_orders, price, sd, ed, sv, 9.95, 0.005)
-            prev_holding_orders = holding_orders.copy()
-
-    # this method should use the existing policy and test it against new data
-    def testPolicy(self, symbol = "IBM", \
-        sd=dt.datetime(2009,1,1), \
-        ed=dt.datetime(2010,1,1), \
-        sv = 10000):  		   	  			  	 		  		  		    	 		 		   		 		  
-
-        # here we build a fake set of trades
-        # your code should return the same sort of data  		   	  			  	 		  		  		    	 		 		   		 		  
-        # dates = pd.date_range(sd, ed)
-        # prices_all = ut.get_data([symbol], dates)  # automatically adds SPY
-        # trades = prices_all[[symbol,]]  # only portfolio symbols
-        # trades_SPY = prices_all['SPY']  # only SPY, for comparison later
-        # trades.values[:,:] = 0 # set them all to nothing
-        # trades.values[0,:] = 1000 # add a BUY at the start
-        # trades.values[40,:] = -1000 # add a SELL
-        # trades.values[41,:] = 1000 # add a BUY
-        # trades.values[60,:] = -2000 # go short from long
-        # trades.values[61,:] = 2000 # go long from short
-        # trades.values[-1,:] = -1000 #exit on the last day
-        # if self.verbose: print(type(trades)) # it better be a DataFrame!
-        # if self.verbose: print(trades)
-        # if self.verbose: print(prices_all)
-
-
-        window = 20
-        sma, bbp, so, price, normalized_price = get_indicators(symbol, sd, ed, window)
-        so = so['%D']
-        indicators = pd.concat([sma, bbp, so], axis=1)
-        indicators.columns = ['SMA', 'BBP', 'SO']
-
-        # Discretize
-        num_steps = 10
-
-        sma_copy = sma[symbol].to_numpy()
-        sma_out, sma_bins = pd.qcut(sma_copy, num_steps, retbins=True, labels=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
-                                    duplicates='drop')
-
-        bbp_copy = bbp[symbol].to_numpy()
-        bbp_out, bbp_bins = pd.qcut(bbp_copy, num_steps, retbins=True, labels=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
-                                    duplicates='drop')
-
-        so_copy = so.values
-        so_out, so_bins = pd.qcut(so_copy, num_steps, retbins=True, labels=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
-                                  duplicates='drop')
-
-        sma_state = pd.cut(indicators['SMA'], bins=sma_bins, labels=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
-        bbp_state = pd.cut(indicators['BBP'], bins=bbp_bins, labels=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
-        so_state = pd.cut(indicators['SO'], bins=so_bins, labels=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
-        indicators_states = pd.DataFrame(np.zeros(len(sma_state)))
-
-        for i in range(len(sma_state)):
-            indicators_states.iloc[i] = (so_state.iloc[i] * 100) + (sma_state.iloc[i] * 10) + (bbp_state.iloc[i])
-
-        indicators_states.dropna(inplace=True)
-
-        converged = False
-        epoch_counter = 0
-
-        while not converged:
-            epoch_counter += 1
-
-            if epoch_counter > 19 and prev_holding_orders.equals(holding_orders):
-                converged = True
-
-            action = self.qlearner.querysetstate(int(indicators_states.iloc[0]))
-            positions = pd.DataFrame(columns=['Date', 'Position'])
-            positions = positions.append({'Date': sma_state.index[0], 'Position': 0}, ignore_index=True)
-
-            for day in range(1, indicators_states.shape[0]):
-                holding = action
-                date = sma_state.index[day]
-                price_index = price.index.get_loc(date)
-
-                daily_return = (price.iloc[price_index] / price.iloc[price_index - 1]) - 1
-
-                action = self.qlearner.querysetstate(int(float(indicators_states.iloc[day])))
-                reward = holding * daily_return
-
-                positions = positions.append({'Date': date, 'Position': action}, ignore_index=True)
-            holding_orders = self.get_order(positions, symbol)
-            strategy_learner = compute_portvals(holding_orders, price, sd, ed, sv, 9.95, 0.005)
-            prev_holding_orders = holding_orders.copy()
-
 
 if __name__=="__main__":
     learner = StrategyLearner()
     learner.addEvidence(symbol="JPM", sd=dt.datetime(2008,1,1), ed=dt.datetime(2009,12,31), sv = 100000)
     learner.testPolicy(symbol="JPM", sd=dt.datetime(2008,1,1), ed=dt.datetime(2009,12,31), sv = 100000)
-    print("One does not simply think up a strategy")  		   	  			  	 		  		  		    	 		 		   		 		  
+    print("One does not simply think up a strategy")
