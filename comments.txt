@@ -5,69 +5,37 @@ Tests passed: 0 out of 4
 Test #0: failed 
 Test case description: ML4T-220
 Traceback:
-  File "grade_strategy_learner.py", line 220, in test_strategy
-    student_insample_cr = evalPolicy2(insample_args['symbol'],in_trades_1,insample_args['sv'],insample_args['sd'],insample_args['ed'],market_impact=impact,commission_cost=0.0)
-  File "grade_strategy_learner.py", line 288, in evalPolicy2
-    nshares = student_trades.loc[row_idx][0]
-  File "frame.py", line 2927, in __getitem__
-    indexer = self.columns.get_loc(key)
-  File "base.py", line 2659, in get_loc
-    return self._engine.get_loc(self._maybe_cast_indexer(key))
-  File "index.pyx", line 108, in pandas._libs.index.IndexEngine.get_loc
-  File "index.pyx", line 132, in pandas._libs.index.IndexEngine.get_loc
-  File "hashtable_class_helper.pxi", line 1601, in pandas._libs.hashtable.PyObjectHashTable.get_item
-  File "hashtable_class_helper.pxi", line 1608, in pandas._libs.hashtable.PyObjectHashTable.get_item
-KeyError: 0
+  File "grade_strategy_learner.py", line 142, in test_strategy
+    in_trades_1, in_trades_2, out_trades, train_t, test_t, out_test_t = run_with_timeout(timeoutwrapper_strategylearner,max_time,(),{})
+  File "grading.py", line 133, in run_with_timeout
+    raise e
+NameError: name 'X' is not defined
 
 Test #1: failed 
 Test case description: AAPL
 Traceback:
-  File "grade_strategy_learner.py", line 220, in test_strategy
-    student_insample_cr = evalPolicy2(insample_args['symbol'],in_trades_1,insample_args['sv'],insample_args['sd'],insample_args['ed'],market_impact=impact,commission_cost=0.0)
-  File "grade_strategy_learner.py", line 288, in evalPolicy2
-    nshares = student_trades.loc[row_idx][0]
-  File "frame.py", line 2927, in __getitem__
-    indexer = self.columns.get_loc(key)
-  File "base.py", line 2659, in get_loc
-    return self._engine.get_loc(self._maybe_cast_indexer(key))
-  File "index.pyx", line 108, in pandas._libs.index.IndexEngine.get_loc
-  File "index.pyx", line 132, in pandas._libs.index.IndexEngine.get_loc
-  File "hashtable_class_helper.pxi", line 1601, in pandas._libs.hashtable.PyObjectHashTable.get_item
-  File "hashtable_class_helper.pxi", line 1608, in pandas._libs.hashtable.PyObjectHashTable.get_item
-KeyError: 0
+  File "grade_strategy_learner.py", line 142, in test_strategy
+    in_trades_1, in_trades_2, out_trades, train_t, test_t, out_test_t = run_with_timeout(timeoutwrapper_strategylearner,max_time,(),{})
+  File "grading.py", line 133, in run_with_timeout
+    raise e
+NameError: name 'X' is not defined
 
 Test #2: failed 
 Test case description: SINE_FAST_NOISE
 Traceback:
-  File "grade_strategy_learner.py", line 220, in test_strategy
-    student_insample_cr = evalPolicy2(insample_args['symbol'],in_trades_1,insample_args['sv'],insample_args['sd'],insample_args['ed'],market_impact=impact,commission_cost=0.0)
-  File "grade_strategy_learner.py", line 288, in evalPolicy2
-    nshares = student_trades.loc[row_idx][0]
-  File "frame.py", line 2927, in __getitem__
-    indexer = self.columns.get_loc(key)
-  File "base.py", line 2659, in get_loc
-    return self._engine.get_loc(self._maybe_cast_indexer(key))
-  File "index.pyx", line 108, in pandas._libs.index.IndexEngine.get_loc
-  File "index.pyx", line 132, in pandas._libs.index.IndexEngine.get_loc
-  File "hashtable_class_helper.pxi", line 1601, in pandas._libs.hashtable.PyObjectHashTable.get_item
-  File "hashtable_class_helper.pxi", line 1608, in pandas._libs.hashtable.PyObjectHashTable.get_item
-KeyError: 0
+  File "grade_strategy_learner.py", line 142, in test_strategy
+    in_trades_1, in_trades_2, out_trades, train_t, test_t, out_test_t = run_with_timeout(timeoutwrapper_strategylearner,max_time,(),{})
+  File "grading.py", line 133, in run_with_timeout
+    raise e
+NameError: name 'X' is not defined
 
 Test #3: failed 
 Test case description: UNH - In sample
 Traceback:
-  File "grade_strategy_learner.py", line 220, in test_strategy
-    student_insample_cr = evalPolicy2(insample_args['symbol'],in_trades_1,insample_args['sv'],insample_args['sd'],insample_args['ed'],market_impact=impact,commission_cost=0.0)
-  File "grade_strategy_learner.py", line 288, in evalPolicy2
-    nshares = student_trades.loc[row_idx][0]
-  File "frame.py", line 2927, in __getitem__
-    indexer = self.columns.get_loc(key)
-  File "base.py", line 2659, in get_loc
-    return self._engine.get_loc(self._maybe_cast_indexer(key))
-  File "index.pyx", line 108, in pandas._libs.index.IndexEngine.get_loc
-  File "index.pyx", line 132, in pandas._libs.index.IndexEngine.get_loc
-  File "hashtable_class_helper.pxi", line 1601, in pandas._libs.hashtable.PyObjectHashTable.get_item
-  File "hashtable_class_helper.pxi", line 1608, in pandas._libs.hashtable.PyObjectHashTable.get_item
-KeyError: 0
+  File "grade_strategy_learner.py", line 142, in test_strategy
+    in_trades_1, in_trades_2, out_trades, train_t, test_t, out_test_t = run_with_timeout(timeoutwrapper_strategylearner,max_time,(),{})
+  File "grading.py", line 133, in run_with_timeout
+    raise e
+NameError: name 'X' is not defined
 
 </pre>

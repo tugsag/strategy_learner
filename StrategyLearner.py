@@ -32,7 +32,7 @@ import numpy as np
 import random
 import RTLearner as rt
 import BagLearner as bl
-from indicators import get_indicators
+from indicators import get_indicators, normalize
 from marketsimcode import compute_portvals
 
 def author():
@@ -44,6 +44,7 @@ class StrategyLearner(object):
     def __init__(self, verbose = False, impact=0.0):
         self.verbose = verbose
         self.impact = impact
+        self.lookback = 14
         self.learner = bl.BagLearner(learner=rt.RTLearner, kwargs={"leaf_size": 5}, bags=20, boost=False, verbose=False)
 
     def get_daily_ret(self, df, day, symbol):
@@ -74,47 +75,71 @@ class StrategyLearner(object):
         prices_SPY = prices_all['SPY']  # only SPY, for comparison later
         if self.verbose: print(prices)
 
-        lookback = 14
+        normalized_prices = prices / prices.loc[prices.first_valid_index()]
+        daily_ret = normalized_prices.copy()
+        daily_ret[:-self.lookback] = (daily_ret[self.lookback:].values / daily_ret[: -self.lookback].values) - 1
+        daily_ret.iloc[-self.lookback:] = 0
+        daily_ret = daily_ret[symbol]
 
-        # norm_prices = prices.divide(prices.ix[0])
-        # daily_rets = self.compute_daily_returns(norm_prices, lookback, symbol)
+        rolling_mean = normalized_prices.rolling(window=self.lookback, min_periods=self.lookback).mean()
+        price_sma = normalized_prices / rolling_mean
 
-        # Get indicators
-        # rolling_mean = norm_prices.rolling(window=lookback).mean()
-        # rolling_std = norm_prices.rolling(window=lookback).std()
-        # up = (rolling_std * 2) + rolling_mean
-        # down = (rolling_std * -2) + rolling_mean
+        rolling_std = normalized_prices.rolling(window=self.lookback, min_periods=self.lookback).std()
+        top_band = rolling_mean + (2 * rolling_std)
+        bottom_band = rolling_mean - (2 * rolling_std)
+        bbp = (normalized_prices - bottom_band) / (top_band - bottom_band)
 
-        # df = norm_prices.copy()
-        # df['bbp'] = (norm_prices - down) / (up - down)
-        # df['Price/SMA'] = norm_prices / rolling_mean
-        # df['bollinger_up'] = (rolling_std * 2) + rolling_mean
-        # df['bollinger_down'] = (rolling_std * -2) + rolling_mean
-        # df['Price/EMA'] = norm_prices / norm_prices.ewm(span=lookback).mean()
-        # df = df.drop(symbol, 1)
-        YBUY = 0.02
-        YSELL = -0.02
+        high = normalized_prices.loc[sd:ed]
+        low = normalized_prices.loc[sd:ed]
+        close = normalized_prices.loc[sd:ed]
 
-        price_sma, bbp, so, price, norm_price = get_indicators(syms, sd, ed, lookback)
-        concat_frames = [price_sma, bbp, so['%D']]
+        so = high.copy()
+
+        for day in range(high.shape[0]):
+            so.iloc[day, :] = 0
+
+        so['16 Day Low'] = low[symbol].rolling(window=16).min()
+        so['16 Day High'] = high[symbol].rolling(window=16).max()
+        so['%K'] = ((close[symbol] - so['16 Day Low']) / (so['16 Day High'] - so['16 Day Low'])) * 100
+        so['%D'] = so['%K'].rolling(window=3).mean()
+
+        so_d = so['%D']
+
+        YBUY = 0.01
+        YSELL = 0
+
+        # price_sma, bbp, so, price, norm_price = get_indicators(syms, sd, ed, self.lookback)
+        concat_frames = [price_sma, bbp, so_d]
         indicators = pd.concat(concat_frames, axis=1)
         indicators.columns = ['Price/SMA', 'BBP', 'SO']
-        indicators.fillna(0, inplace=True)
-        trainingX = indicators.values
 
-        daily_rets = self.get_daily_ret(price, lookback, syms)
+        trainingX = indicators.values
+        # daily_ret = self.get_daily_ret(normalized_prices, self.lookback, syms)
 
         trainingY = []
-        # indicators.loc[daily_rets > (YBUY + self.impact), Y] = 1
-        # indicators.loc[daily_rets < (YSELL + self.impact), Y] = -1
+        # df = normalized_prices.copy()
+        # df['Price/SMA'] = normalized_prices / rolling_mean
+        # df['BBP'] = (normalized_prices - bottom_band) / (top_band - bottom_band)
+        # df['SO'] = so_d
+        # df['action'] = 0
+        # df.loc[daily_ret > (YBUY + self.impact), 'action'] = 1
+        # df.loc[daily_ret < (YSELL + self.impact), 'action'] = -1
+        # df = df.fillna(value=0).copy()
+        # data = df.values
+        # X = data[:, :-1]
+        # Y = data[:, -1].astype(dtype=int)
+        # print(X)
+        # print(Y)
 
-        for index, row in price.iterrows():
-            if daily_rets.loc[index, symbol] > (YBUY + self.impact):
+        for index, row in normalized_prices.iterrows():
+            if daily_ret.loc[index] > (YBUY + self.impact):
                 trainingY.append(1)
-            elif daily_rets.loc[index, symbol] < (YSELL + self.impact):
+            elif daily_ret.loc[index] < (YSELL + self.impact):
                 trainingY.append(-1)
             else:
                 trainingY.append(0)
+
+        print(trainingY)
 
         trainingY = np.array(trainingY)
 
@@ -126,6 +151,7 @@ class StrategyLearner(object):
         ed=dt.datetime(2010,1,1), \
         sv = 10000):
 
+        # example usage of the old backward compatible util function
         syms = [symbol]
         dates = pd.date_range(sd, ed)
         prices_all = ut.get_data(syms, dates)  # automatically adds SPY
@@ -133,82 +159,141 @@ class StrategyLearner(object):
         prices_SPY = prices_all['SPY']  # only SPY, for comparison later
         if self.verbose: print(prices)
 
-        lookback = 14
+        normalized_prices = prices / prices.loc[prices.first_valid_index()]
+        daily_ret = normalized_prices.copy()
+        daily_ret[:-self.lookback] = (daily_ret[self.lookback:].values / daily_ret[: -self.lookback].values) - 1
+        daily_ret.iloc[-self.lookback:] = 0
+        daily_ret = daily_ret[symbol]
 
-        # norm_prices = prices.divide(prices.ix[0])
-        # daily_rets = self.compute_daily_returns(norm_prices, lookback, symbol)
+        rolling_mean = normalized_prices.rolling(window=self.lookback, min_periods=self.lookback).mean()
+        price_sma = normalized_prices / rolling_mean
 
-        # Get indicators
-        # rolling_mean = norm_prices.rolling(window=lookback).mean()
-        # rolling_std = norm_prices.rolling(window=lookback).std()
-        # up = (rolling_std * 2) + rolling_mean
-        # down = (rolling_std * -2) + rolling_mean
+        rolling_std = normalized_prices.rolling(window=self.lookback, min_periods=self.lookback).std()
+        top_band = rolling_mean + (2 * rolling_std)
+        bottom_band = rolling_mean - (2 * rolling_std)
+        bbp = (normalized_prices - bottom_band) / (top_band - bottom_band)
 
-        # df = norm_prices.copy()
-        # df['bbp'] = (norm_prices - down) / (up - down)
-        # df['Price/SMA'] = norm_prices / rolling_mean
-        # df['bollinger_up'] = (rolling_std * 2) + rolling_mean
-        # df['bollinger_down'] = (rolling_std * -2) + rolling_mean
-        # df['Price/EMA'] = norm_prices / norm_prices.ewm(span=lookback).mean()
-        # df = df.drop(symbol, 1)
-        YBUY = 0.02
-        YSELL = -0.02
+        high = normalized_prices.loc[sd:ed]
+        low = normalized_prices.loc[sd:ed]
+        close = normalized_prices.loc[sd:ed]
 
-        price_sma, bbp, so, price, norm_price = get_indicators(syms, sd, ed, lookback)
-        concat_frames = [price_sma, bbp, so['%D']]
+        so = high.copy()
+
+        for day in range(high.shape[0]):
+            so.iloc[day, :] = 0
+
+        so['16 Day Low'] = low[symbol].rolling(window=16).min()
+        so['16 Day High'] = high[symbol].rolling(window=16).max()
+        so['%K'] = ((close[symbol] - so['16 Day Low']) / (so['16 Day High'] - so['16 Day Low'])) * 100
+        so['%D'] = so['%K'].rolling(window=3).mean()
+
+        so_d = so['%D']
+
+        YBUY = 0.01
+        YSELL = 0
+
+        # price_sma, bbp, so, price, norm_price = get_indicators(syms, sd, ed, self.lookback)
+        concat_frames = [price_sma, bbp, so_d]
         indicators = pd.concat(concat_frames, axis=1)
         indicators.columns = ['Price/SMA', 'BBP', 'SO']
-        indicators.fillna(0, inplace=True)
+
         testingX = indicators.values
-        testingY = self.learner.query(testingX)
+
+        testingY = []
+        # df = normalized_prices.copy()
+        # df['Price/SMA'] = normalized_prices / rolling_mean
+        # df['BBP'] = (normalized_prices - bottom_band) / (top_band - bottom_band)
+        # df['SO'] = so_d
+        # df['action'] = 0
+        # df.loc[daily_ret > (YBUY + self.impact), 'action'] = 1
+        # df.loc[daily_ret < (YSELL + self.impact), 'action'] = -1
+        # df = df.fillna(value=0).copy()
+        # data = df.values
+        # X = data[:, :-1]
+        # Y = data[:, -1].astype(dtype=int)
+        # print(X)
+        # print(Y)
+
+        for index, row in normalized_prices.iterrows():
+            if daily_ret.loc[index] > (YBUY + self.impact):
+                testingY.append(1)
+            elif daily_ret.loc[index] < (YSELL + self.impact):
+                testingY.append(-1)
+            else:
+                testingY.append(0)
+
+        answer = self.learner.query(testingX)
+        dates = pd.date_range(sd, ed)
+        prices_all = ut.get_data([symbol], dates)  # automatically adds SPY
+        trades = prices_all[[symbol, ]]  # only portfolio symbols
 
         # print(testingY)
-        positions = pd.DataFrame(columns=['Date', 'Position'])
-        prev = 0
-        for day in range(lookback+1, price.shape[0]):
-            date = price.iloc[day].name
-            if prev == 0:
-                positions = positions.append({'Date': date, 'Position': 0}, ignore_index=True)
-                prev = date
+        YBUY = 0.01
+        YSELL = 0
 
-            positions = positions.append({'Date': prev, 'Position': self.check_value(testingY[day])}, ignore_index=True)
-            prev = date
-            if date == ed:
-                positions = positions.append({'Date': date, 'Position': self.check_value(testingY[day])}, ignore_index=True)
+        trades.values[:, :] = 0  # set them all to nothing
 
-        holding_orders = pd.DataFrame(columns=['Date', symbol])
-        current_holdings = 0
+        trades.values[answer > (YBUY + 2 * self.impact)] = 1000
+        trades.values[answer < (YSELL - 2 * self.impact)] = -1000
 
-        for holding in positions.iterrows():
-            date = holding[1]['Date']
-            position = holding[1]['Position']
+        orders = trades.copy()
+        orders = orders.diff()
 
-            if current_holdings == 0:
-                if position == -1:
-                    holding_orders = holding_orders.append({'Date': date, symbol: -1000}, ignore_index=True)
-                    current_holdings -= 1000
-                elif position == 1:
-                    holding_orders = holding_orders.append({'Date': date, symbol: 1000}, ignore_index=True)
-                    current_holdings += 1000
-                else:
-                    holding_orders = holding_orders.append({'Date': date, symbol: 0}, ignore_index=True)
-            elif current_holdings == 1000:
-                if position == -1:
-                    holding_orders = holding_orders.append({'Date': date, symbol: -2000}, ignore_index=True)
-                    current_holdings -= 2000
-                else:
-                    holding_orders = holding_orders.append({'Date': date, symbol: 0}, ignore_index=True)
-            elif current_holdings == -1000:
-                if position == 1:
-                    holding_orders = holding_orders.append({'Date': date, symbol: 2000}, ignore_index=True)
-                    current_holdings += 2000
-                else:
-                    holding_orders = holding_orders.append({'Date': date, symbol: 0}, ignore_index=True)
+        orders[symbol][0] = trades[symbol][0]
 
-        strategy_learner = compute_portvals(holding_orders, price, sd, ed, sv, 9.95, 0.005)
-        holding_orders = holding_orders.set_index('Date')
-        holding_orders = holding_orders[1:]
-        return holding_orders
+        if self.verbose: print
+        type(orders)  # it better be a DataFrame!
+        if self.verbose: print
+        orders
+        if self.verbose: print
+        prices_all
+
+        return orders
+        # prev = 0
+        # for day in range(lookback+1, price.shape[0]):
+        #     date = price.iloc[day].name
+        #     if prev == 0:
+        #         positions = positions.append({'Date': date, 'Position': 0}, ignore_index=True)
+        #         prev = date
+        #
+        #     positions = positions.append({'Date': prev, 'Position': self.check_value(testingY[day])}, ignore_index=True)
+        #     prev = date
+        #     if date == ed:
+        #         positions = positions.append({'Date': date, 'Position': self.check_value(testingY[day])}, ignore_index=True)
+        #
+        # holding_orders = pd.DataFrame(columns=['Date', symbol])
+        # current_holdings = 0
+        #
+        # for holding in positions.iterrows():
+        #     date = holding[1]['Date']
+        #     position = holding[1]['Position']
+        #
+        #     if current_holdings == 0:
+        #         if position == -1:
+        #             holding_orders = holding_orders.append({'Date': date, symbol: -1000}, ignore_index=True)
+        #             current_holdings -= 1000
+        #         elif position == 1:
+        #             holding_orders = holding_orders.append({'Date': date, symbol: 1000}, ignore_index=True)
+        #             current_holdings += 1000
+        #         else:
+        #             holding_orders = holding_orders.append({'Date': date, symbol: 0}, ignore_index=True)
+        #     elif current_holdings == 1000:
+        #         if position == -1:
+        #             holding_orders = holding_orders.append({'Date': date, symbol: -2000}, ignore_index=True)
+        #             current_holdings -= 2000
+        #         else:
+        #             holding_orders = holding_orders.append({'Date': date, symbol: 0}, ignore_index=True)
+        #     elif current_holdings == -1000:
+        #         if position == 1:
+        #             holding_orders = holding_orders.append({'Date': date, symbol: 2000}, ignore_index=True)
+        #             current_holdings += 2000
+        #         else:
+        #             holding_orders = holding_orders.append({'Date': date, symbol: 0}, ignore_index=True)
+        #
+        # strategy_learner = compute_portvals(holding_orders, price, sd, ed, sv, 9.95, 0.005)
+        # holding_orders = holding_orders.set_index('Date')
+        # holding_orders = holding_orders[1:]
+        # return holding_orders
 
 if __name__=="__main__":
     learner = StrategyLearner()
