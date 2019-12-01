@@ -47,19 +47,47 @@ class StrategyLearner(object):
         self.lookback = 14
         self.learner = bl.BagLearner(learner=rt.RTLearner, kwargs={"leaf_size": 5}, bags=20, boost=False, verbose=False)
 
-    def get_daily_ret(self, df, day, symbol):
-        daily_ret = df.copy()
-        daily_ret[:-day] = (daily_ret[day:].values / daily_ret[: -day].values) - 1
-        daily_ret.ix[-day:] = 0
-        return daily_ret[symbol]
 
-    def check_value(self, testingY):
-        if testingY > 0:
+    def get_order(self, positions, symbol):
+        holding_orders = pd.DataFrame(columns=['Date', symbol])
+        current_holdings = 0
+
+        for holding in positions.iterrows():
+            date = holding[1]['Date']
+            position = holding[1]['Position']
+
+            if current_holdings == 0:
+                if position == -1:
+                    holding_orders = holding_orders.append({'Date': date, symbol: -1000}, ignore_index=True)
+                    current_holdings -= 1000
+                elif position == 1:
+                    holding_orders = holding_orders.append({'Date': date, symbol: 1000}, ignore_index=True)
+                    current_holdings += 1000
+                else:
+                    holding_orders = holding_orders.append({'Date': date, symbol: 0}, ignore_index=True)
+            elif current_holdings == 1000:
+                if position == -1:
+                    holding_orders = holding_orders.append({'Date': date, symbol: -2000}, ignore_index=True)
+                    current_holdings -= 2000
+                else:
+                    holding_orders = holding_orders.append({'Date': date, symbol: 0}, ignore_index=True)
+            elif current_holdings == -1000:
+                if position == 1:
+                    holding_orders = holding_orders.append({'Date': date, symbol: 2000}, ignore_index=True)
+                    current_holdings += 2000
+                else:
+                    holding_orders = holding_orders.append({'Date': date, symbol: 0}, ignore_index=True)
+        holding_orders = holding_orders.set_index('Date')
+        return holding_orders
+
+    def check_value(self, predY, YBUY, YSELL):
+        if predY > (YBUY + 2 * self.impact):
             return 1
-        elif testingY < 0:
+        elif predY < (YSELL - 2 * self.impact):
             return -1
         else:
             return 0
+
 
     # this method should create a QLearner, and train it for trading
     def addEvidence(self, symbol = "IBM", \
@@ -173,7 +201,7 @@ class StrategyLearner(object):
         so_d = so['%D']
 
         YBUY = 0.01
-        YSELL = 0
+        YSELL = -0.02
 
         concat_frames = [price_sma, bbp, so_d]
         indicators = pd.concat(concat_frames, axis=1)
@@ -192,18 +220,18 @@ class StrategyLearner(object):
                 testingY.append(0)
 
         predY = self.learner.query(testingX)
-        trades = prices_all[[symbol, ]]
+
+        positions = pd.DataFrame(columns=['Date', 'Position'])
 
         YBUY = 0.02
         YSELL = -0.02
 
-        trades.values[:, :] = 0
-        trades.values[predY > (YBUY + 2 * self.impact)] = 1000
-        trades.values[predY < (YSELL - 2 * self.impact)] = -1000
-
-        holding_orders = trades.diff()
-
-        holding_orders[symbol][0] = trades[symbol][0]
+        positions = positions.append({'Date': normalized_prices.iloc[0].name, 'Position': 0}, ignore_index=True)
+        for day in range(1, prices_all.shape[0]):
+            date = normalized_prices.iloc[day].name
+            positions = positions.append({'Date': date, 'Position': self.check_value(predY[day], YBUY, YSELL)},
+                                             ignore_index=True)
+        holding_orders = self.get_order(positions, symbol)
 
         return holding_orders
 
