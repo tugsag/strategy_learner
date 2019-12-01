@@ -21,8 +21,8 @@ def normalize(df):
     return df / df[df.first_valid_index()]
 
 
-def get_indicators(symbols, sd, ed):
-    lookback = 14
+def get_indicators(symbols, sd, ed, lookback):
+    symbols = [symbols]
 
     price = get_data(symbols, pd.date_range(sd, ed), False)
 
@@ -36,24 +36,24 @@ def get_indicators(symbols, sd, ed):
     normalized_price = normalize(price[symbols[0]])
     normalized_sma = normalize(sma[symbols[0]])
 
-    fig1 = plt.figure()
-    plt.subplot(211)
-    plt.title('Indicator 1: Simple Moving Average')
-    plt.ylabel('Normalized Value')
-    plt.tick_params(axis='x', labelbottom=False)
-    normalized_price.plot(label='JPM Price')
-    normalized_sma.plot(label='SMA')
-    plt.grid()
-    plt.legend()
-    plt.subplot(212)
-    price_sma.plot(label='Price/SMA', color='green')
-    plt.axhline(y=1, color='red', linestyle='-')
-    plt.ylabel('Normalized Value')
-    plt.xlabel('Date')
-    plt.legend()
-    plt.grid()
-    fig1.savefig("SMA.png")
-    plt.close(fig1)
+    # fig1 = plt.figure()
+    # plt.subplot(211)
+    # plt.title('Indicator 1: Simple Moving Average')
+    # plt.ylabel('Normalized Value')
+    # plt.tick_params(axis='x', labelbottom=False)
+    # normalized_price.plot(label='JPM Price')
+    # normalized_sma.plot(label='SMA')
+    # plt.grid()
+    # plt.legend()
+    # plt.subplot(212)
+    # price_sma.plot(label='Price/SMA', color='green')
+    # plt.axhline(y=1, color='red', linestyle='-')
+    # plt.ylabel('Normalized Value')
+    # plt.xlabel('Date')
+    # plt.legend()
+    # plt.grid()
+    # fig1.savefig("SMA.png")
+    # plt.close(fig1)
 
     # Indicator 2: Bollinger Bands %B
     # Reference: Vectorize Me! Lecture David Byrd
@@ -69,28 +69,28 @@ def get_indicators(symbols, sd, ed):
     top_band = top_band[symbols[0]]
     bottom_band = bottom_band[symbols[0]]
 
-    fig2 = plt.figure()
-    plt.subplot(211)
-    top_band.plot(label="Upper Band", color='#a2a3a2')
-    bottom_band.plot(label="Lower Band", color='#a2a3a2')
-    plt.fill_between(bbp.index.get_level_values(0), top_band, bottom_band, color='#cacccb')
-    price[symbols[0]].plot(label='Price')
-    sma[symbols[0]].plot(label="SMA")
-    plt.title('Indicator 2: Bollinger Band Percent')
-    plt.ylabel('Value')
-    plt.tick_params(axis='x', labelbottom=False)
-    plt.grid()
-    plt.legend(fontsize='x-small', loc="lower right")
-    plt.subplot(212)
-    bbp[symbols[0]].plot(label="Bollinger Band %", color='green')
-    plt.axhline(y=0, color='red', linestyle='-')
-    plt.axhline(y=1, color='red', linestyle='-')
-    plt.xlabel('Date')
-    plt.ylabel('Value')
-    plt.grid()
-    plt.legend(fontsize='x-small', loc="lower right")
-    fig2.savefig("BBP.png")
-    plt.close(fig2)
+    # fig2 = plt.figure()
+    # plt.subplot(211)
+    # top_band.plot(label="Upper Band", color='#a2a3a2')
+    # bottom_band.plot(label="Lower Band", color='#a2a3a2')
+    # plt.fill_between(bbp.index.get_level_values(0), top_band, bottom_band, color='#cacccb')
+    # price[symbols[0]].plot(label='Price')
+    # sma[symbols[0]].plot(label="SMA")
+    # plt.title('Indicator 2: Bollinger Band Percent')
+    # plt.ylabel('Value')
+    # plt.tick_params(axis='x', labelbottom=False)
+    # plt.grid()
+    # plt.legend(fontsize='x-small', loc="lower right")
+    # plt.subplot(212)
+    # bbp[symbols[0]].plot(label="Bollinger Band %", color='green')
+    # plt.axhline(y=0, color='red', linestyle='-')
+    # plt.axhline(y=1, color='red', linestyle='-')
+    # plt.xlabel('Date')
+    # plt.ylabel('Value')
+    # plt.grid()
+    # plt.legend(fontsize='x-small', loc="lower right")
+    # fig2.savefig("BBP.png")
+    # plt.close(fig2)
 
     # Indicator 3: Stochastic Oscillator
     # References:
@@ -112,21 +112,21 @@ def get_indicators(symbols, sd, ed):
     so['%K'] = ((close[symbols[0]] - so['16 Day Low']) / (so['16 Day High'] - so['16 Day Low'])) * 100
     so['%D'] = so['%K'].rolling(window=3).mean()
 
-    fig3 = plt.figure()
-    plt.subplot(211)
-    plt.title('Indicator 3: Stochastic Oscillator')
-    plt.ylabel('Value')
-    plt.tick_params(axis='x', labelbottom=False)
-    so['%K'].plot(label='%K')
-    so['%D'].plot(label='%D')
-    plt.grid()
-    plt.legend(fontsize='x-small', loc="upper right")
-    plt.subplot(212)
-    close[symbols[0]].plot(label='Close', color='green')
-    plt.xlabel('Date')
-    plt.grid()
-    plt.ylabel('Value')
-    plt.legend()
-    fig3.savefig('SO.png')
+    # fig3 = plt.figure()
+    # plt.subplot(211)
+    # plt.title('Indicator 3: Stochastic Oscillator')
+    # plt.ylabel('Value')
+    # plt.tick_params(axis='x', labelbottom=False)
+    # so['%K'].plot(label='%K')
+    # so['%D'].plot(label='%D')
+    # plt.grid()
+    # plt.legend(fontsize='x-small', loc="upper right")
+    # plt.subplot(212)
+    # close[symbols[0]].plot(label='Close', color='green')
+    # plt.xlabel('Date')
+    # plt.grid()
+    # plt.ylabel('Value')
+    # plt.legend()
+    # fig3.savefig('SO.png')
 
-    return price/sma, bbp, so, lookback, price
+    return price/sma, bbp, so, price, normalized_price

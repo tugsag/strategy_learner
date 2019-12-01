@@ -1,52 +1,52 @@
 """MC3-P3: Strategy Learner - grading script.  		   	  			  	 		  		  		    	 		 		   		 		  
-  		   	  			  	 		  		  		    	 		 		   		 		  
-Usage:  		   	  			  	 		  		  		    	 		 		   		 		  
+
+Usage:
 - Switch to a student feedback directory first (will write "points.txt" and "comments.txt" in pwd).  		   	  			  	 		  		  		    	 		 		   		 		  
 - Run this script with both ml4t/ and student solution in PYTHONPATH, e.g.:  		   	  			  	 		  		  		    	 		 		   		 		  
     PYTHONPATH=ml4t:MC1-P2/jdoe7 python ml4t/mc2_p1_grading/grade_marketsim.py  		   	  			  	 		  		  		    	 		 		   		 		  
-  		   	  			  	 		  		  		    	 		 		   		 		  
-Copyright 2017, Georgia Tech Research Corporation  		   	  			  	 		  		  		    	 		 		   		 		  
+
+Copyright 2017, Georgia Tech Research Corporation
 Atlanta, Georgia 30332-0415  		   	  			  	 		  		  		    	 		 		   		 		  
 All Rights Reserved  		   	  			  	 		  		  		    	 		 		   		 		  
-  		   	  			  	 		  		  		    	 		 		   		 		  
-Template code for CS 4646/7646  		   	  			  	 		  		  		    	 		 		   		 		  
-  		   	  			  	 		  		  		    	 		 		   		 		  
-Georgia Tech asserts copyright ownership of this template and all derivative  		   	  			  	 		  		  		    	 		 		   		 		  
+
+Template code for CS 4646/7646
+
+Georgia Tech asserts copyright ownership of this template and all derivative
 works, including solutions to the projects assigned in this course. Students  		   	  			  	 		  		  		    	 		 		   		 		  
 and other users of this template code are advised not to share it with others  		   	  			  	 		  		  		    	 		 		   		 		  
 or to make it available on publicly viewable websites including repositories  		   	  			  	 		  		  		    	 		 		   		 		  
 such as github and gitlab.  This copyright statement should not be removed  		   	  			  	 		  		  		    	 		 		   		 		  
 or edited.  		   	  			  	 		  		  		    	 		 		   		 		  
-  		   	  			  	 		  		  		    	 		 		   		 		  
-We do grant permission to share solutions privately with non-students such  		   	  			  	 		  		  		    	 		 		   		 		  
+
+We do grant permission to share solutions privately with non-students such
 as potential employers. However, sharing with other current or future  		   	  			  	 		  		  		    	 		 		   		 		  
 students of CS 7646 is prohibited and subject to being investigated as a  		   	  			  	 		  		  		    	 		 		   		 		  
 GT honor code violation.  		   	  			  	 		  		  		    	 		 		   		 		  
-  		   	  			  	 		  		  		    	 		 		   		 		  
------do not edit anything above this line---  		   	  			  	 		  		  		    	 		 		   		 		  
-  		   	  			  	 		  		  		    	 		 		   		 		  
-Student Name: Tucker Balch (replace with your name)  		   	  			  	 		  		  		    	 		 		   		 		  
-GT User ID: tb34 (replace with your User ID)  		   	  			  	 		  		  		    	 		 		   		 		  
-GT ID: 900897987 (replace with your GT ID)  		   	  			  	 		  		  		    	 		 		   		 		  
+
+-----do not edit anything above this line---
+
+Student Name: Grace Park
+GT User ID: gpark83
+GT ID: 903474899
 """  		   	  			  	 		  		  		    	 		 		   		 		  
-  		   	  			  	 		  		  		    	 		 		   		 		  
-import pytest  		   	  			  	 		  		  		    	 		 		   		 		  
+
+import pytest
 from grading.grading import grader, GradeResult, run_with_timeout, IncorrectOutput  		   	  			  	 		  		  		    	 		 		   		 		  
-  		   	  			  	 		  		  		    	 		 		   		 		  
-import os  		   	  			  	 		  		  		    	 		 		   		 		  
+
+import os
 import sys  		   	  			  	 		  		  		    	 		 		   		 		  
 import traceback as tb  		   	  			  	 		  		  		    	 		 		   		 		  
-  		   	  			  	 		  		  		    	 		 		   		 		  
-import datetime as dt  		   	  			  	 		  		  		    	 		 		   		 		  
+
+import datetime as dt
 import numpy as np  		   	  			  	 		  		  		    	 		 		   		 		  
 import pandas as pd  		   	  			  	 		  		  		    	 		 		   		 		  
 from collections import namedtuple  		   	  			  	 		  		  		    	 		 		   		 		  
-  		   	  			  	 		  		  		    	 		 		   		 		  
-import time  		   	  			  	 		  		  		    	 		 		   		 		  
+
+import time
 import util  		   	  			  	 		  		  		    	 		 		   		 		  
 import random  		   	  			  	 		  		  		    	 		 		   		 		  
-  		   	  			  	 		  		  		    	 		 		   		 		  
-# Test cases  		   	  			  	 		  		  		    	 		 		   		 		  
+
+# Test cases
 StrategyTestCase = namedtuple('Strategy', ['description','insample_args','outsample_args','benchmark_type','benchmark','impact','train_time','test_time','max_time','seed'])  		   	  			  	 		  		  		    	 		 		   		 		  
 strategy_test_cases = [  		   	  			  	 		  		  		    	 		 		   		 		  
     StrategyTestCase(  		   	  			  	 		  		  		    	 		 		   		 		  
@@ -54,7 +54,7 @@ strategy_test_cases = [
         insample_args=dict(symbol="ML4T-220",sd=dt.datetime(2008,1,1),ed=dt.datetime(2009,12,31),sv=100000),  		   	  			  	 		  		  		    	 		 		   		 		  
         outsample_args=dict(symbol="ML4T-220",sd=dt.datetime(2010,1,1),ed=dt.datetime(2011,12,31),sv=100000),  		   	  			  	 		  		  		    	 		 		   		 		  
         benchmark_type='clean',  		   	  			  	 		  		  		    	 		 		   		 		  
-        benchmark=1.0, #benchmark updated Apr 24 2017  		   	  			  	 		  		  		    	 		 		   		 		  
+        benchmark=1.0, #benchmark updated Apr 24 2017
         impact=0.0,  		   	  			  	 		  		  		    	 		 		   		 		  
         train_time=25,  		   	  			  	 		  		  		    	 		 		   		 		  
         test_time=5,  		   	  			  	 		  		  		    	 		 		   		 		  
@@ -66,7 +66,7 @@ strategy_test_cases = [
         insample_args=dict(symbol="AAPL",sd=dt.datetime(2008,1,1),ed=dt.datetime(2009,12,31),sv=100000),  		   	  			  	 		  		  		    	 		 		   		 		  
         outsample_args=dict(symbol="AAPL",sd=dt.datetime(2010,1,1),ed=dt.datetime(2011,12,31),sv=100000),  		   	  			  	 		  		  		    	 		 		   		 		  
         benchmark_type='stock',  		   	  			  	 		  		  		    	 		 		   		 		  
-        benchmark=0.1581999999999999, #benchmark computed Nov 22 2017  		   	  			  	 		  		  		    	 		 		   		 		  
+        benchmark=0.1581999999999999, #benchmark computed Nov 22 2017
         impact=0.0,  		   	  			  	 		  		  		    	 		 		   		 		  
         train_time=25,  		   	  			  	 		  		  		    	 		 		   		 		  
         test_time=5,  		   	  			  	 		  		  		    	 		 		   		 		  
@@ -78,7 +78,7 @@ strategy_test_cases = [
         insample_args=dict(symbol="SINE_FAST_NOISE",sd=dt.datetime(2008,1,1),ed=dt.datetime(2009,12,31),sv=100000),  		   	  			  	 		  		  		    	 		 		   		 		  
         outsample_args=dict(symbol="SINE_FAST_NOISE",sd=dt.datetime(2010,1,1),ed=dt.datetime(2011,12,31),sv=100000),  		   	  			  	 		  		  		    	 		 		   		 		  
         benchmark_type='noisy',  		   	  			  	 		  		  		    	 		 		   		 		  
-        benchmark=2.0, #benchmark updated Apr 24 2017  		   	  			  	 		  		  		    	 		 		   		 		  
+        benchmark=2.0, #benchmark updated Apr 24 2017
         impact=0.0,  		   	  			  	 		  		  		    	 		 		   		 		  
         train_time=25,  		   	  			  	 		  		  		    	 		 		   		 		  
         test_time=5,  		   	  			  	 		  		  		    	 		 		   		 		  
@@ -90,7 +90,7 @@ strategy_test_cases = [
         insample_args=dict(symbol="UNH",sd=dt.datetime(2008,1,1),ed=dt.datetime(2009,12,31),sv=100000),  		   	  			  	 		  		  		    	 		 		   		 		  
         outsample_args=dict(symbol="UNH",sd=dt.datetime(2010,1,1),ed=dt.datetime(2011,12,31),sv=100000),  		   	  			  	 		  		  		    	 		 		   		 		  
         benchmark_type='stock',  		   	  			  	 		  		  		    	 		 		   		 		  
-        benchmark= -0.25239999999999996, #benchmark computed Nov 22 2017  		   	  			  	 		  		  		    	 		 		   		 		  
+        benchmark= -0.25239999999999996, #benchmark computed Nov 22 2017
         impact=0.0,  		   	  			  	 		  		  		    	 		 		   		 		  
         train_time=25,  		   	  			  	 		  		  		    	 		 		   		 		  
         test_time=5,  		   	  			  	 		  		  		    	 		 		   		 		  
@@ -98,17 +98,17 @@ strategy_test_cases = [
         seed=1481090000  		   	  			  	 		  		  		    	 		 		   		 		  
         ),  		   	  			  	 		  		  		    	 		 		   		 		  
 ]  		   	  			  	 		  		  		    	 		 		   		 		  
-  		   	  			  	 		  		  		    	 		 		   		 		  
-max_points = 60.0  		   	  			  	 		  		  		    	 		 		   		 		  
+
+max_points = 60.0
 html_pre_block = True  # surround comments with HTML <pre> tag (for T-Square comments field)  		   	  			  	 		  		  		    	 		 		   		 		  
-  		   	  			  	 		  		  		    	 		 		   		 		  
-MAX_HOLDINGS = 1000  		   	  			  	 		  		  		    	 		 		   		 		  
-  		   	  			  	 		  		  		    	 		 		   		 		  
-# Test functon(s)  		   	  			  	 		  		  		    	 		 		   		 		  
+
+MAX_HOLDINGS = 1000
+
+# Test functon(s)
 @pytest.mark.parametrize("description, insample_args, outsample_args, benchmark_type, benchmark, impact, train_time, test_time, max_time, seed", strategy_test_cases)  		   	  			  	 		  		  		    	 		 		   		 		  
 def test_strategy(description, insample_args, outsample_args, benchmark_type, benchmark, impact, train_time, test_time, max_time, seed, grader):  		   	  			  	 		  		  		    	 		 		   		 		  
     """Test StrategyLearner.  		   	  			  	 		  		  		    	 		 		   		 		  
-  		   	  			  	 		  		  		    	 		 		   		 		  
+
     Requires test description, insample args (dict), outsample args (dict), benchmark_type (str), benchmark (float)  		   	  			  	 		  		  		    	 		 		   		 		  
     max time (seconds), points for this test case (int), random seed (long), and a grader fixture.  		   	  			  	 		  		  		    	 		 		   		 		  
     """  		   	  			  	 		  		  		    	 		 		   		 		  
@@ -122,8 +122,8 @@ def test_strategy(description, insample_args, outsample_args, benchmark_type, be
         outsample_cr_to_beat = None  		   	  			  	 		  		  		    	 		 		   		 		  
         if benchmark_type == 'clean':  		   	  			  	 		  		  		    	 		 		   		 		  
             outsample_cr_to_beat = benchmark  		   	  			  	 		  		  		    	 		 		   		 		  
-        def timeoutwrapper_strategylearner():  		   	  			  	 		  		  		    	 		 		   		 		  
-            #Set fixed seed for repetability  		   	  			  	 		  		  		    	 		 		   		 		  
+        def timeoutwrapper_strategylearner():
+            #Set fixed seed for repetability
             np.random.seed(seed)  		   	  			  	 		  		  		    	 		 		   		 		  
             random.seed(seed)  		   	  			  	 		  		  		    	 		 		   		 		  
             learner = StrategyLearner.StrategyLearner(verbose=False,impact=impact)  		   	  			  	 		  		  		    	 		 		   		 		  
@@ -293,8 +293,8 @@ def evalPolicy2(symbol, student_trades, startval, sd, ed, market_impact,commissi
         orders_df = orders_df.append(new_row)  		   	  			  	 		  		  		    	 		 		   		 		  
     portvals = compute_portvals(orders_df, sd, ed, startval,market_impact,commission_cost)  		   	  			  	 		  		  		    	 		 		   		 		  
     return float(portvals[-1]/portvals[0])-1  		   	  			  	 		  		  		    	 		 		   		 		  
-  		   	  			  	 		  		  		    	 		 		   		 		  
-def compute_portvals(orders_df, start_date, end_date, startval, market_impact=0.0, commission_cost=0.0):  		   	  			  	 		  		  		    	 		 		   		 		  
+
+def compute_portvals(orders_df, start_date, end_date, startval, market_impact=0.0, commission_cost=0.0):
     """Simulate the market for the given date range and orders file."""  		   	  			  	 		  		  		    	 		 		   		 		  
     symbols = []  		   	  			  	 		  		  		    	 		 		   		 		  
     orders = []  		   	  			  	 		  		  		    	 		 		   		 		  
@@ -334,6 +334,6 @@ def compute_portvals(orders_df, start_date, end_date, startval, market_impact=0.
     holdings = trades.cumsum()  		   	  			  	 		  		  		    	 		 		   		 		  
     df_portvals = (prices * holdings).sum(axis=1)  		   	  			  	 		  		  		    	 		 		   		 		  
     return df_portvals  		   	  			  	 		  		  		    	 		 		   		 		  
-  		   	  			  	 		  		  		    	 		 		   		 		  
-if __name__ == "__main__":  		   	  			  	 		  		  		    	 		 		   		 		  
+
+if __name__ == "__main__":
     pytest.main(["-s", __file__])  		   	  			  	 		  		  		    	 		 		   		 		  
