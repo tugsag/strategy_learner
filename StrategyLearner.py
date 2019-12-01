@@ -192,7 +192,6 @@ class StrategyLearner(object):
                 testingY.append(0)
 
         predY = self.learner.query(testingX)
-        prices_all = ut.get_data([symbol], pd.date_range(sd, ed))
         trades = prices_all[[symbol, ]]
 
         YBUY = 0.02
@@ -202,19 +201,11 @@ class StrategyLearner(object):
         trades.values[predY > (YBUY + 2 * self.impact)] = 1000
         trades.values[predY < (YSELL - 2 * self.impact)] = -1000
 
-        orders = trades.copy()
-        orders = orders.diff()
+        holding_orders = trades.diff()
 
-        orders[symbol][0] = trades[symbol][0]
+        holding_orders[symbol][0] = trades[symbol][0]
 
-        if self.verbose: print
-        type(orders)  # it better be a DataFrame!
-        if self.verbose: print
-        orders
-        if self.verbose: print
-        prices_all
-
-        return orders
+        return holding_orders
 
 
 if __name__=="__main__":
