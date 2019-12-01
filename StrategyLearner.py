@@ -32,21 +32,21 @@ import numpy as np
 import RTLearner as rt
 import BagLearner as bl
 from indicators import get_indicators
+from marketsimcode import compute_portvals
 
 
 def author():
     return 'gpark83'
 
-class StrategyLearner(object):
 
-    # constructor  		   	  			  	 		  		  		    	 		 		   		 		  
+class StrategyLearner(object):
     def __init__(self, verbose = False, impact=0.0):
         self.verbose = verbose
         self.impact = impact
-        self.lookback = 14
-        self.learner = bl.BagLearner(learner=rt.RTLearner, kwargs={"leaf_size": 5}, bags=20, boost=False, verbose=False)
+        self.lookback = 10
+        self.learner = bl.BagLearner(learner=rt.RTLearner, kwargs={"leaf_size": 5}, bags=25, boost=False, verbose=False)
 
-
+    # Get the holding orders
     def get_order(self, positions, symbol):
         holding_orders = pd.DataFrame(columns=['Date', symbol])
         current_holdings = 0
@@ -76,9 +76,11 @@ class StrategyLearner(object):
                     current_holdings += 2000
                 else:
                     holding_orders = holding_orders.append({'Date': date, symbol: 0}, ignore_index=True)
-        holding_orders = holding_orders.set_index('Date')
+
         return holding_orders
 
+    # Check whether to long, short, cash
+    # Reference: http://quantsoftware.gatech.edu/Classification_Trader_Hints
     def check_value(self, predY, YBUY, YSELL):
         if predY > (YBUY + 2 * self.impact):
             return 1
@@ -87,13 +89,12 @@ class StrategyLearner(object):
         else:
             return 0
 
-    # this method should create a QLearner, and train it for trading
+    # Train
     def addEvidence(self, symbol = "IBM", \
         sd=dt.datetime(2008,1,1), \
         ed=dt.datetime(2009,1,1), \
         sv = 10000):
 
-        # example usage of the old backward compatible util function
         syms=[symbol]
         dates = pd.date_range(sd, ed)
         prices_all = ut.get_data(syms, dates)  # automatically adds SPY
@@ -104,10 +105,10 @@ class StrategyLearner(object):
         # Get Indicators
         normalized_prices = prices / prices.loc[prices.first_valid_index()]
 
-        YBUY = 0.01
+        YBUY = 0.02
         YSELL = -0.02
 
-        price_sma, bbp, so = get_indicators(syms, sd, ed, self.lookback)
+        price_sma, bbp, so, lookbacks, pricex = get_indicators(syms, sd, ed)
         so_d = so['%D']
 
         daily_ret = normalized_prices.copy()
@@ -135,7 +136,7 @@ class StrategyLearner(object):
 
         self.learner.addEvidence(trainingX, trainingY)
 
-    # this method should use the existing policy and test it against new data
+    # Test
     def testPolicy(self, symbol = "IBM", \
         sd=dt.datetime(2009,1,1), \
         ed=dt.datetime(2010,1,1), \
@@ -151,10 +152,11 @@ class StrategyLearner(object):
 
         normalized_prices = prices / prices.loc[prices.first_valid_index()]
 
-        YBUY = 0.01
+        YBUY = 0.02
         YSELL = -0.02
 
-        price_sma, bbp, so = get_indicators(syms, sd, ed, self.lookback)
+        # Get indicators
+        price_sma, bbp, so, lookbacks, pricex = get_indicators(syms, sd, ed)
         so_d = so['%D']
 
         daily_ret = normalized_prices.copy()
@@ -182,15 +184,20 @@ class StrategyLearner(object):
 
         positions = pd.DataFrame(columns=['Date', 'Position'])
 
-        YBUY = 0.02
+        YBUY = 0.03
         YSELL = -0.02
 
+        # Get positions
         positions = positions.append({'Date': normalized_prices.iloc[0].name, 'Position': 0}, ignore_index=True)
         for day in range(1, prices_all.shape[0]):
             date = normalized_prices.iloc[day].name
             positions = positions.append({'Date': date, 'Position': self.check_value(predY[day], YBUY, YSELL)},
                                              ignore_index=True)
+
+        # Get orders
         holding_orders = self.get_order(positions, symbol)
+
+        holding_orders = holding_orders.set_index('Date')
 
         return holding_orders
 
@@ -199,4 +206,3 @@ if __name__=="__main__":
     learner = StrategyLearner()
     learner.addEvidence(symbol="JPM", sd=dt.datetime(2008,1,1), ed=dt.datetime(2009,12,31), sv = 100000)
     learner.testPolicy(symbol="JPM", sd=dt.datetime(2008,1,1), ed=dt.datetime(2009,12,31), sv = 100000)
-    print("One does not simply think up a strategy")

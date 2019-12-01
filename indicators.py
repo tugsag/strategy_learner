@@ -21,7 +21,8 @@ def normalize(df):
     return df / df[df.first_valid_index()]
 
 
-def get_indicators(symbols, sd, ed, lookback):
+def get_indicators(symbols, sd, ed):
+    lookback = 14
 
     price = get_data(symbols, pd.date_range(sd, ed), False)
 
@@ -128,4 +129,4 @@ def get_indicators(symbols, sd, ed, lookback):
     # plt.legend()
     # fig3.savefig('SO.png')
 
-    return price/sma, bbp, so
+    return price/sma, bbp, so, lookback, price

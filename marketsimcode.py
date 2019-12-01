@@ -68,17 +68,17 @@ def compute_portvals(orders_df, stock_val, start, end, start_val=100000, commiss
     std_daily_ret = daily_ret.std()
     sharpe_ratio = np.sqrt(252) * avg_daily_ret / std_daily_ret
 
-    # print(f"Date Range: {start} to {end}")
-    # print()
-    # print(f"Sharpe Ratio of Fund: {sharpe_ratio}")
-    # print()
-    # print(f"Cumulative Return of Fund: {cum_ret}")
-    # print()
-    # print(f"Standard Deviation of Fund: {std_daily_ret}")
-    # print()
-    # print(f"Average Daily Return of Fund: {avg_daily_ret}")
-    # print()
-    # print(f"Final Portfolio Value: {port_val[-1]}")
+    print(f"Date Range: {start} to {end}")
+    print()
+    print(f"Sharpe Ratio of Fund: {sharpe_ratio}")
+    print()
+    print(f"Cumulative Return of Fund: {cum_ret}")
+    print()
+    print(f"Standard Deviation of Fund: {std_daily_ret}")
+    print()
+    print(f"Average Daily Return of Fund: {avg_daily_ret}")
+    print()
+    print(f"Final Portfolio Value: {port_val[-1]}")
     return port_val
 
 
