@@ -180,6 +180,7 @@ class StrategyLearner(object):
             else:
                 testingY.append(0)
 
+        # Build trades
         predY = self.learner.query(testingX)
 
         positions = pd.DataFrame(columns=['Date', 'Position'])
